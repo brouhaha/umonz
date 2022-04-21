@@ -289,28 +289,6 @@ d_table_end:
 	jp	(ix)
 	
 
-
-
-; on entry:
-;    IY contains return address
-; on return:
-;    A', B', C' destroyed
-
-delay:	ex	af,af'
-	exx
-
-	ld	bc,06000h
-loop:	dec	bc
-	ld	a,b
-	or	c
-	jr	nz,loop
-
-	ex	af,af'
-	exx
-
-	iyret
-
-
 ; on entry:
 ;    C points to SIO port control register
 ;    IX contains return address
