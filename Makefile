@@ -2,7 +2,7 @@
 # SPDX-License-IdentifierGPL-3.0-only
 
 
-all: umonz.lst umonz.hex umonz.bin
+all: umonz.lst umonz.hex umonz.bin foo.lst foo.hex
 
 
 %.lst %.p: %.asm
@@ -10,10 +10,10 @@ all: umonz.lst umonz.hex umonz.bin
 	asl -cpu z80 -L -C $<
 
 %.hex: %.p
-	p2hex -F Intel $*
+	p2hex -r "\$$-0x" -F Intel $*
 
 %.bin: %.p
-	p2bin $*
+	p2bin -r "\$$-0x" $*
 
 
 SIM = /home/eric/src/rc2014-emu/RC2014/rc2014
@@ -21,14 +21,14 @@ SIM = /home/eric/src/rc2014-emu/RC2014/rc2014
 # requires umonz.asm to be configured for SIO
 sim:	umonz.bin
 	cp umonz.bin rc2014.rom
-#	truncate -s 512K rc2014.rom
+	truncate -s 512K rc2014.rom
 	$(SIM) -s
 
 
 # requires umon1.asm to be configured for ACIA
 sim-acia:	umonz.bin
 	cp umonz.bin rc2014.rom
-#	truncate -s 512K rc2014.rom
+	truncate -s 512K rc2014.rom
 	$(SIM)
 
 

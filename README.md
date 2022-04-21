@@ -27,7 +27,22 @@ common on RC2014 systems). It can be configured to use an MC6850 ACIA instead.
 
 ## Usage
 
-The monitor will output a signon banner, then gives a `>` prompt. All input letters, including commands and hexadecimal values, must be in lower case. Commands are a single character. Only the first letter of a command is input, whereupon the full name of the command is printed. If the command requires any arguments, it will wait for them to be entered. Spaces, hypens, and equal signs shown in the commands listed below are generated automatically. All argument values are hexadecimal, and exactly two or four digits must be entered, as appropriate. There is no backspacing, as there is no buffer to store the command string for editing.
+The monitor will output a signon banner, then gives a `>` prompt.
+All input letters, including commands and hexadecimal values, will be
+converted to and printed in lower case.
+Commands are a single character. Only the first letter of a command is
+input, whereupon the full name of the command is printed.
+If the command requires any arguments, it will wait for them to be entered.
+Spaces, hypens, and equal signs shown in the commands listed below are
+generated automatically.
+All argument values are hexadecimal, and exactly two or four digits must
+be entered, as appropriate.
+There is no backspacing, as there is no buffer to store the command string
+for editing. A command being entered may be cancelled using control-C.
+
+An Intel hex file can be downloaded. The leading colon on an input line
+triggers this automatically. Only the "00" data record type is
+accepted, and only 16-bit addressing is used.
 
 The commands are:
 
@@ -38,4 +53,5 @@ The commands are:
 | `write aaaa=dd`  | write on byte of memory at address aaaa with the value dd |
 | `input pp`       | input one byte from port address pp |
 | `output pp=dd`   | output one byte to port address pp with the value dd |
+| `go aaaa`        | execute starting at address aaaa |
 | `halt`           | halt |

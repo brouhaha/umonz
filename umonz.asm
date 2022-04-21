@@ -54,6 +54,12 @@ p_acia_d	equ	p_acia_c+1	; data, r/w
 		endif
 
 
+; character definitions
+c_etx		equ	003h		; control-C
+c_cr		equ	00dh
+c_lf		equ	00ah
+
+
 ramloc		equ	8000h
 
 	org	0000h
@@ -68,7 +74,12 @@ reset:	di
 	ixcall	uart_setup
 
 	ld	hl,m_banner
+
+mloop_msg:
 	ixcall	msg_out
+
+mloop_crlf:
+	ixcall	crlf_out
 
 mloop:
 	ld	hl,m_prompt
@@ -76,8 +87,12 @@ mloop:
 
 mloop2:
 	iycall	char_in
+	iycall	downcase
 
 	ixcall	dispatch
+
+	db	':'
+	dw	cmd_ihex
 
 	db	'd'
 	dw	cmd_dump
@@ -94,11 +109,20 @@ mloop2:
 	db	'o'
 	dw	cmd_output
 
+	db	'g'
+	dw	cmd_go
+
 	db	'h'
 	dw	cmd_halt
 
-	db	00dh
-	dw	cmd_null
+	db	c_etx		; Control-C is a null command
+	dw	mloop_crlf
+
+	db	c_cr		; CR is a null command
+	dw	mloop_crlf
+
+	db	c_lf		; completely ignore line feed
+	dw	mloop2
 
 	db	0		; end of table
 
@@ -136,17 +160,14 @@ dump_byte:
 	ld	a,l
 	xor	e
 	jr	nz,dump_next
-
-cmd_null:
-	ixcall	crlf_out
-	jp	mloop
+	jp	mloop_crlf
 
 dump_next:
 	iycall	char_avail	; is there a received character?
 	jr	z,dump_next2
 	iycall	char_in
-	cp	a,003h		; is it control-C?
-	jr	z,cmd_null	; yes, end command
+	cp	a,c_etx		; is it control-C?
+	jp	z,mloop_crlf	; yes, end command
 
 dump_next2:
 	inc	hl		; advance pointer
@@ -168,9 +189,8 @@ cmd_read:
 	iycall	char_out
 	ld	a,(hl)
 	ixcall	hex8_out
-	ixcall	crlf_out
 
-	jp	mloop
+	jp	mloop_crlf
 
 
 cmd_write:
@@ -202,9 +222,8 @@ cmd_input:
 	ld	c,l
 	in	a,(c)
 	ixcall	hex8_out
-	ixcall	crlf_out
 
-	jp	mloop
+	jp	mloop_crlf
 
 
 cmd_output:
@@ -221,38 +240,127 @@ cmd_output:
 	jp	mloop
 
 
+cmd_go:
+	ld	hl,m_cmd_go
+	ixcall	msg_out
+	ixcall	hex16_in
+	ixcall	crlf_out
+	jp	(hl)
+
+
 cmd_halt:
 	ld	hl,m_cmd_halt
 	ixcall	msg_out
 	halt
 
 
+cmd_ihex:
+	xor	a		; initialize checksum
+	ld	i,a
+
+	ixcall	ihex8_in	; get byte count into D
+	ld	d,a
+
+	ixcall	ihex8_in	; get address into HL
+	ld	h,a
+	ixcall	ihex8_in
+	ld	l,a
+
+	ixcall	ihex8_in	; get record type
+	or	a		; is it a data record?
+	jr	nz,skip_line	;   no, skip
+
+ihex_next_byte:
+	ixcall	ihex8_in	; get a data byte
+	ld	(hl),a
+	inc	hl
+
+	dec	d		; decrement and test byte count
+	jr	nz,ihex_next_byte
+	
+	ixcall	ihex8_in	; get checksum byte
+
+	ld	a,i		; is the checksum correct?
+	jr	nz,ihex_bad_checksum
+
+	iycall	char_in		; next character should be carriage return
+	cp	c_cr
+	jp	z,mloop2	;   yes, return (silently) to main loop
+
+ihex_bad_char:
+	ld	hl,m_ihex_garbage
+	jp	mloop_msg
+
+ihex_bad_checksum:
+	ld	hl,m_ihex_bad_checksum
+	jp	mloop_msg
+	
+
+
+skip_line:
+	ld	a,'%'
+	iycall	char_out
+	
+	iycall	char_in
+	cp	c_etx
+	jp	z,mloop_crlf
+	cp	c_cr
+	jp	z,mloop
+	jr	skip_line
+
+
+; on entry:
+;    A contains character
+;    I contains running checksum
+;    IY contains return address
+; on exit
+;    A unchanged (character)
+;    I checksum updated
+;    B destroyed
+update_checksum:
+	ld	b,a
+	ld	a,i
+	add	a,b
+	ld	i,a
+	ld	a,b
+	iyret
+
+
 m_banner:
-	db	"umonz 0.1",00dh,00ah,000h
+	db	"umonz 0.1",000h
 
 m_prompt:
 	db	">",000h
 
 m_bad_cmd:
-	db	00dh,00ah,"unrecognized command",00dh,00ah,000h
+	db	c_cr,c_lf,"unrecognized command",c_cr,c_lf,000h
 
 m_cmd_dump:
-	db	"ump ",000h
+	db	"dump ",000h
 
 m_cmd_read:
-	db	"ead ",000h
+	db	"read ",000h
 
 m_cmd_write:
-	db	"rite ",000h
+	db	"write ",000h
 
 m_cmd_input:
-	db	"nput ",000h
+	db	"input ",000h
 
 m_cmd_output:
-	db	"utput ",000h
+	db	"output ",000h
+
+m_cmd_go:
+	db	"go ",000h
 
 m_cmd_halt:
-	db	"alt",00dh,00ah,000h
+	db	"halt",c_cr,c_lf,000h
+
+m_ihex_garbage:
+	db	"bad char in hex file",000h
+
+m_ihex_bad_checksum:
+	db	"bad checksum in hex file",000h
 
 
 ; on entry:
@@ -280,7 +388,6 @@ dispatch:
 	jr	dispatch
 
 d_found:
-	iycall	char_out
 	ld	sp,ix
 	ret
 
@@ -295,9 +402,9 @@ d_table_end:
 ; on return:
 ;    A, C, IY destroyed
 crlf_out:
-	ld	a,00dh
+	ld	a,c_cr
 	iycall	char_out
-	ld	a,00ah
+	ld	a,c_lf
 	iycall	char_out
 	ixret
 
@@ -356,6 +463,52 @@ hex16_out:
 	ixret
 
 
+
+; on entry:
+;    I contains running checksum
+;    IX contains return address
+; on return:
+;    A contains input value
+;    I contains updated checksum
+;    A, B, C, E destroyed
+ihex8_in:
+	ld	b,2		; digit count
+	
+ihex8_in_loop1:
+	iycall	char_in
+	iycall	downcase
+	cp	c_etx
+	jp	z,mloop_crlf
+	ld	c,a		; save the char
+	iycall	hex_asc_to_bin	; convert ASCII hex digit to binary
+	jp	c,ihex_bad_char
+	
+	rla			; move hex digit to MSD
+	rla
+	rla
+	rla
+
+	ld	c,b		; temp save outer loop counter in C
+
+	ld	b,4		; interate over four bits
+ihex8_in_loop2:
+	rla			; rotate one bit from MSB of A into LSB of HL
+	rl	e
+
+	djnz	ihex8_in_loop2	; iterate bit
+
+	ld	b,c		; restore outer loop counter from C
+	djnz	ihex8_in_loop1	; iterate digit
+	
+	ld	a,i
+	add	a,e
+	ld	i,a
+
+	ld	a,e
+	ixret
+
+
+
 ; on entry:
 ;    IX contains return address
 ; on return:
@@ -376,12 +529,15 @@ hex_in:
 
 hex_in_loop1
 	iycall	char_in
+	iycall	downcase
+	cp	c_etx
+	jp	z,mloop_crlf
 	ld	c,a		; save the char
 	iycall	hex_asc_to_bin	; convert ASCII hex digit to binary
 	jr	c,hex_in_loop1	; if not a digit, try again
 
 	ld	a,c		; get original char back
-	iycall	char_out
+	iycall	char_out	; echo it to terminal
 	iycall	hex_asc_to_bin	; convert ASCII hex digit to binary (again)
 
 	rla			; move hex digit to MSD
@@ -601,6 +757,21 @@ bank_setup:
 	out	(p_bnken),a
 
 	ixret
+
+
+; on entry:
+;    A contains character to downcase
+;    IY contains return address
+; on return:
+;    A downcased
+downcase:
+	sub	a,'A'
+	cp	26
+	jr	nc,downcase1
+	add	a,32
+downcase1:
+	add	a,'A'
+	iyret
 
 
 	end
