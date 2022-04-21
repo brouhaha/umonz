@@ -8,7 +8,7 @@ umonz development i shosted at the
 
 ## Introduction
 
-I've been heloping a friend debug a homebrew Z80 system, and
+I've been helping a friend debug a homebrew Z80 system, and
 RAM wasn't working. After developing a series of test programs, including
 scope loops, that did not depend on RAM, it occurred to me to write a
 simple Z80 monitor also not depending on RAM. I had previously done this
