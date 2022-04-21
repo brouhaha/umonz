@@ -1,7 +1,8 @@
 # umonz - RAMless monitor for Z80 microprocessor
 
 Copyright 2022 Eric Smith <spacewar@gmail.com>
-SPDX-License-IdentifierGPL-3.0-only
+
+SPDX-License-Identifier: GPL-3.0-only
 
 umonz development i shosted at the
 [umonz Github repository](https://github.com/brouhaha/umonz/).

@@ -1,5 +1,5 @@
 # Copyright 2022 Eric Smith <spacewar@gmail.com>
-# SPDX-License-IdentifierGPL-3.0-only
+# SPDX-License-Identifier: GPL-3.0-only
 
 
 all: umonz.lst umonz.hex umonz.bin foo.lst foo.hex

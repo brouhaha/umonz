@@ -1,7 +1,7 @@
 ; umonz.asm
 ; RAMless Z80 monitor
 ; Copyright 2022 Eric Smith <spacewar@gmail.com>
-; SPDX-License-IdentifierGPL-3.0-only
+; SPDX-License-Identifier: GPL-3.0-only
 
 	cpu	z80
 
