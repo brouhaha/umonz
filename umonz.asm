@@ -5,9 +5,9 @@
 
 	cpu	z80
 
-use_mmap	equ	1
-use_sio		equ	1
-use_acia	equ	0	
+use_mmap	equ	0	; set for RC2014 512K Flash/RAM style mapper
+use_sio		equ	1	; set to use Z80-SIO serial channel
+use_acia	equ	0	; set to use MC6850 ACIA serial channel
 
 
 ixcall	macro	target
