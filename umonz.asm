@@ -73,17 +73,15 @@ reset:	di
 
 	ixcall	uart_setup
 
-	ld	hl,m_banner
-
-mloop_msg:
-	ixcall	msg_out
+	ixcall	msg_out_inline
+	db	"umonz 0.1",000h
 
 mloop_crlf:
 	ixcall	crlf_out
 
 mloop:
-	ld	hl,m_prompt
-	ixcall	msg_out
+	ixcall	msg_out_inline
+	db	">",000h
 
 mloop2:
 	iycall	char_in
@@ -126,14 +124,14 @@ mloop2:
 
 	db	0		; end of table
 
-	ld	hl,m_bad_cmd
-	ixcall	msg_out
+	ixcall	msg_out_inline
+	db	c_cr,c_lf,"unrecognized command",c_cr,c_lf,000h
 	jr	mloop
 
 
 cmd_dump:
-	ld	hl,m_cmd_dump
-	ixcall	msg_out
+	ixcall	msg_out_inline
+	db	"dump ",000h
 	ixcall	hex16_in	; get start addr into HL
 	ld	d,h		; save start addr into DE
 	ld	e,l
@@ -178,8 +176,8 @@ dump_next2:
 
 
 cmd_read:
-	ld	hl,m_cmd_read
-	ixcall	msg_out
+	ixcall	msg_out_inline
+	db	"read ",000h
 	ixcall	hex16_in
 	ixcall	crlf_out
 	ixcall	hex16_out
@@ -194,8 +192,8 @@ cmd_read:
 
 
 cmd_write:
-	ld	hl,m_cmd_write
-	ixcall	msg_out
+	ixcall	msg_out_inline
+	db	"write ",000h
 	ixcall	hex16_in
 	ld	d,h
 	ld	e,l
@@ -209,8 +207,8 @@ cmd_write:
 
 
 cmd_input:
-	ld	hl,m_cmd_input
-	ixcall	msg_out
+	ixcall	msg_out_inline
+	db	"input ",000h
 	ixcall	hex8_in
 	ixcall	crlf_out
 	ld	a,l
@@ -227,8 +225,8 @@ cmd_input:
 
 
 cmd_output:
-	ld	hl,m_cmd_output
-	ixcall	msg_out
+	ixcall	msg_out_inline
+	db	"output ",000h
 	ixcall	hex8_in
 	ld	e,l
 	ld	a,'='
@@ -241,16 +239,16 @@ cmd_output:
 
 
 cmd_go:
-	ld	hl,m_cmd_go
-	ixcall	msg_out
+	ixcall	msg_out_inline
+	db	"go ",000h
 	ixcall	hex16_in
 	ixcall	crlf_out
 	jp	(hl)
 
 
 cmd_halt:
-	ld	hl,m_cmd_halt
-	ixcall	msg_out
+	ixcall	msg_out_inline
+	db	"halt",c_cr,c_lf,000h
 	halt
 
 
@@ -288,14 +286,15 @@ ihex_next_byte:
 	jp	z,mloop2	;   yes, return (silently) to main loop
 
 ihex_bad_char:
-	ld	hl,m_ihex_garbage
-	jp	mloop_msg
+	ixcall	msg_out_inline
+	db	"bad char in hex file",000h
+	jp	mloop_crlf
 
 ihex_bad_checksum:
-	ld	hl,m_ihex_bad_checksum
-	jp	mloop_msg
+	ixcall	msg_out_inline
+	db	"bad checksum in hex file",000h
+	jp	mloop_crlf
 	
-
 
 skip_line:
 	ld	a,'%'
@@ -324,43 +323,6 @@ update_checksum:
 	ld	i,a
 	ld	a,b
 	iyret
-
-
-m_banner:
-	db	"umonz 0.1",000h
-
-m_prompt:
-	db	">",000h
-
-m_bad_cmd:
-	db	c_cr,c_lf,"unrecognized command",c_cr,c_lf,000h
-
-m_cmd_dump:
-	db	"dump ",000h
-
-m_cmd_read:
-	db	"read ",000h
-
-m_cmd_write:
-	db	"write ",000h
-
-m_cmd_input:
-	db	"input ",000h
-
-m_cmd_output:
-	db	"output ",000h
-
-m_cmd_go:
-	db	"go ",000h
-
-m_cmd_halt:
-	db	"halt",c_cr,c_lf,000h
-
-m_ihex_garbage:
-	db	"bad char in hex file",000h
-
-m_ihex_bad_checksum:
-	db	"bad checksum in hex file",000h
 
 
 ; on entry:
@@ -410,21 +372,20 @@ crlf_out:
 
 
 ; on entry:
-;    HL points to message string (null terminated)
-;    IX contains return address
+;    IX points to message string (null terminated), followed by return point
 ; on return:
-;    A, C, HL, IY destroyed
-msg_out:
+;    A, C, IY destroyed
+msg_out_inline:
 
-msg_loop:
-	ld	a,(hl)
-	inc	hl
+msg_inline_loop:
+	ld	a,(ix)
+	inc	ix
 	or	a
-	jr	z,msg_done
+	jr	z,msg_inline_done
 
 	iycall	char_out
-	jr	msg_loop
-msg_done:
+	jr	msg_inline_loop
+msg_inline_done:
 	ixret
 
 
