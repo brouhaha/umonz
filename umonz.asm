@@ -198,12 +198,15 @@ cmd_write:
 	ld	d,h
 	ld	e,l
 	ld	a,'='
+
+cmd_write_loop:
 	iycall	char_out
-	ixcall	hex8_in
-	ixcall	crlf_out
+	ixcall	hex8_in_opt
 	ld	a,l
 	ld	(de),a
-	jp	mloop
+	inc	de
+	ld	a,' '
+	jr	cmd_write_loop
 
 
 cmd_input:
@@ -230,12 +233,14 @@ cmd_output:
 	ixcall	hex8_in
 	ld	e,l
 	ld	a,'='
+
+cmd_output_loop:
 	iycall	char_out
-	ixcall	hex8_in
-	ixcall	crlf_out
+	ixcall	hex8_in_opt
 	ld	c,e
 	out	(c),l
-	jp	mloop
+	ld	a,' '
+	jr	cmd_output_loop
 
 
 cmd_go:
@@ -473,6 +478,59 @@ ihex8_in_loop2:
 ; on entry:
 ;    IX contains return address
 ; on return:
+;    L contains input value
+;    A, B, C destroyed
+; note:
+;    if CR is entered in place of first digit, will abort command
+;    (like control-C in any position)
+hex8_in_opt:
+	ld	b,2
+	xor	a
+	ld	l,a
+
+hi8o_loop1:
+	iycall	char_in
+	cp	c_cr		; carriage return?
+	jp	z,mloop_crlf	;   yes, end command
+	jr	hi8o_loop1b
+
+hi8o_loop1a:
+	iycall	char_in
+
+hi8o_loop1b:
+	cp	c_etx		; control-C?
+	jp	z,mloop_crlf	;   yes, abort command
+	
+	iycall	downcase
+	ld	c,a		; save the char
+	iycall	hex_asc_to_bin	; convert ASCII hex digit to binary
+	jr	c,hi8o_loop1
+	ld	a,c		; get original char back
+	iycall	char_out	; echo it to terminal
+	iycall	hex_asc_to_bin	; convert ASCII hex digit to binary (again)
+
+	rla			; move hex digit to MSD
+	rla
+	rla
+	rla
+
+	ld	c,b		; tmep save outer loop counter in C
+
+	ld	b,4		; iterate over four bits
+hi8o_loop2:
+	rla			; rotate one bit from MSB of A into LSB of L
+	rl	l
+	djnz	hi8o_loop2	; iterate bit
+	ld	b,c		; restore outer loop counter from C
+	djnz	hi8o_loop1a	; iterate digit
+
+	ixret
+
+
+
+; on entry:
+;    IX contains return address
+; on return:
 ;    HL contains input value
 ;    A, B, C destroyed
 hex16_in:
@@ -518,7 +576,7 @@ hex_in_loop2:
 
 	ld	b,c		; restore outer loop counter from C
 	djnz	hex_in_loop1	; iterate digit
-	
+
 	ixret
 
 
