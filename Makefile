@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: GPL-3.0-only
 
 
-all: umonz.lst umonz.hex umonz.bin foo.lst foo.hex
+all: umonz.lst umonz.hex umonz.bin dltest.hex
 
 
 %.lst %.p: %.asm
