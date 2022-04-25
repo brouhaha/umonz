@@ -57,6 +57,7 @@ The commands are:
 | `read aaaa`              | read one byte of memory from address `aaaa` |
 | `write aaaa=dd...`       | write one or more cosecutive bytes of memory at address `aaaa` with the value(s) `dd`, carriage return when done |
 | `copy ssss-eeee to dddd` | copy memory from address range `ssss` through `eeee` (nclusive) to address `dddd` |
+| `upload bbbb-eeee`       | upload memory from address `bbbb` to `eeee` (inclusive) in Intel hex format |
 | `input pp`               | input one byte from port address `pp` |
 | `output pp=dd...`        | output one or more bytes to port address `pp` with the value(s) `dd`, carriage return when done |
 | `go aaaa`                | execute starting at address `aaaa` |

@@ -92,6 +92,9 @@ mloop2:
 	db	':'
 	dw	cmd_ihex
 
+	db	'u'
+	dw	cmd_ihex_up
+
 	db	'd'
 	dw	cmd_dump
 
@@ -307,7 +310,7 @@ cmd_ihex:
 
 	ixcall	ihex8_in	; get record type
 	or	a		; is it a data record?
-	jr	nz,skip_line	;   no, skip
+	jr	nz,ihex_not_data
 
 ihex_next_byte:
 	ixcall	ihex8_in	; get a data byte
@@ -326,27 +329,162 @@ ihex_next_byte:
 	cp	c_cr
 	jp	z,mloop2	;   yes, return (silently) to main loop
 
-ihex_bad_char:
-	ixcall	msg_out_inline
-	db	"bad char in hex file",000h
-	jp	mloop_crlf
-
-ihex_bad_checksum:
-	ixcall	msg_out_inline
-	db	"bad checksum in hex file",000h
-	jp	mloop_crlf
-	
-
 skip_line:
 	ld	a,'%'
 	iycall	char_out
-	
+
 	iycall	char_in
 	cp	c_etx
 	jp	z,mloop_crlf
 	cp	c_cr
-	jp	z,mloop
+	jr	nz,skip_line
+	jp	mloop2
+
+ihex_not_data:
+	cp	a,01h
+	jr	nz,ihex_bad_rec_type
+
+ihex_bad_char:
+	ixcall	msg_out_inline
+	db	"bad char in hex file",000h
 	jr	skip_line
+
+ihex_bad_checksum:
+	ixcall	msg_out_inline
+	db	"bad checksum in hex file",000h
+	jr	skip_line
+
+ihex_bad_rec_type:
+	ixcall	msg_out_inline
+	db	"bad record type in hex file",000h
+	jp	skip_line
+
+
+cmd_ihex_up:
+	ixcall	msg_out_inline
+	db	"upload ",000h
+	ixcall	hex16_in	; get start addr into HL
+	ld	d,h		; save start addr into DE
+	ld	e,l
+	ld	a,'-'
+	iycall	char_out
+	ixcall	hex16_in	; get end addr into HL
+	inc	hl		; user entered end in inclusive, increment to make it exclusive
+	ex	de,hl		; now HL is start, DE is end
+
+idump_rec:
+	ixcall	crlf_out
+	ld	a,':'
+	iycall	char_out
+
+	xor	a		; initialize checksum
+	ld	i,a
+
+	iycall	idump_get_rec_len	; output record length
+	ixcall	ihex8_out
+
+	ld	a,h		; output address
+	ixcall  ihex8_out
+	ld	a,l
+	ixcall  ihex8_out
+
+	xor	a		; output record type 00 = data
+	ixcall	ihex8_out
+
+	iycall	idump_get_rec_len	; get record length into B
+	ld	b,a
+
+idump_byte:
+	ld	a,i		; update checksum
+	add	a,(hl)
+	ld	i,a
+
+; can't use ihex8_out in the inner loop because it destroys B
+	ld	a,(hl)		; output MSD
+	rrca			; shift MSD to LSD
+	rrca
+	rrca
+	rrca
+	iycall	ihexdig_out
+	
+	ld	a,(hl)		; output LSD
+	iycall	ihexdig_out
+
+	inc	hl
+	djnz	idump_byte
+
+	ld	a,i		; output checksum
+	neg
+	ixcall	ihex8_out
+
+	iycall	char_avail	; is there a received character?
+	jr	z,idump_next
+	iycall	char_in
+	cp	a,c_etx		; is it control-C?
+	jp	z,mloop_crlf	; yes, end command
+
+idump_next:
+	ld	a,h		; at end of range?
+	xor	d
+	jp	nz,idump_rec
+	ld	a,l
+	xor	e
+	jp	nz,idump_rec
+
+; output end record
+	ixcall	crlf_out
+
+	ld	a,':'
+	iycall	char_out
+
+	xor	a		; init checksum
+	ld	i,a
+
+	xor	a		; record length
+	ixcall	ihex8_out
+
+	xor	a		; address
+	ixcall	ihex8_out
+	xor	a
+	ixcall	ihex8_out
+
+	ld	a,01h		; record type
+	ixcall	ihex8_out
+
+	ld	a,i		; output checksum
+	neg
+	ixcall	ihex8_out
+
+	jp	mloop_crlf
+
+
+; on entry:
+;    HL contains current address
+;    DE comtains limit address
+;    IY contains return address
+; on return:
+;    HL, DE unchanged
+;    A contains record length, max 16 bytes
+idump_get_rec_len:
+	or	a		; clear carry
+	ex	de,hl		; DE=cur, HL=limit
+	sbc	hl,de		; DE=cur, HL=count
+
+	ld	a,h		; if high byte of end-cur != 0, clip to 10
+	or	a
+	jr	nz,rec_len_10
+
+	ld	a,l		; if low byte is less than 10 use it as-is
+	cp	a,10h
+	jr	c,rec_len_not_10
+
+rec_len_10:
+	ld	a,10h
+
+rec_len_not_10:
+	add	hl,de		; restore current address
+	ex	de,hl
+	iyret
 
 
 ; on entry:
@@ -464,6 +602,47 @@ hex16_out:
 
 	ixret
 
+
+; on entry:
+;    A contains 8-bit value to output
+;    I contains running checksum
+;    IX contains return address
+; on return:
+;    I contains updated checkusm
+;    A, B  C, IY destroyed
+ihex8_out:
+	ld	c,a		; update checksum
+	ld	a,i
+	add	a,c
+	ld	i,a
+	ld	a,c
+
+	ld	b,a
+	rrca			; shift MSD to LSD
+	rrca
+	rrca
+	rrca
+	iycall	ihexdig_out
+	ld	a,b
+	iycall	ihexdig_out
+	ixret
+
+
+; on entry:
+;    A contains hex digit to output, in least significant digit
+;    I contains running checksum
+;    IY contains return address
+; on return:
+;    I contains updated checkusm
+;    A, C destroyed
+ihexdig_out:
+	and	0fh
+	cp	0ah
+	jr	c,ihdo_no_adj
+	add	a,('A'-'0')-10
+ihdo_no_adj:
+	add	a,'0'
+	jp	char_out
 
 
 ; on entry:
