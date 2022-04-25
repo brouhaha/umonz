@@ -36,7 +36,7 @@ converted to and printed in lower case.
 Commands are a single character. Only the first letter of a command is
 input, whereupon the full name of the command is printed.
 If the command requires any arguments, it will wait for them to be entered.
-Spaces, hypens, and equal signs shown in the commands listed below are
+Spaces, hypens, equal signs, and "to"  shown in the commands listed below are
 generated automatically.
 
 All argument values are hexadecimal, and exactly two or four digits must
@@ -53,11 +53,11 @@ The commands are:
 
 | command                       | description |
 | ----------------------------- | ----------- |
-| `dump bbbb-eeee`      | dump memmory from adress `bbbb` to `eeee` (inclusive) - can halt with control-C |
-| `read aaaa`           | read one byte of memory from address `aaaa` |
-| `write aaaa=dd...`    | write one or more cosecutive bytes of memory at address `aaaa` with the value(s) `dd`, carriage return when done |
-| `copy ssss-eeee dddd` | copy memory from address range `ssss` through `eeee` (nclusive) to address `dddd` |
-| `input pp`            | input one byte from port address `pp` |
-| `output pp=dd...`     | output one or more bytes to port address `pp` with the value(s) `dd`, carriage return when done |
-| `go aaaa`             | execute starting at address `aaaa` |
-| `halt`                | halt |
+| `dump bbbb-eeee`         | dump memmory from adress `bbbb` to `eeee` (inclusive) - can halt with control-C |
+| `read aaaa`              | read one byte of memory from address `aaaa` |
+| `write aaaa=dd...`       | write one or more cosecutive bytes of memory at address `aaaa` with the value(s) `dd`, carriage return when done |
+| `copy ssss-eeee to dddd` | copy memory from address range `ssss` through `eeee` (nclusive) to address `dddd` |
+| `input pp`               | input one byte from port address `pp` |
+| `output pp=dd...`        | output one or more bytes to port address `pp` with the value(s) `dd`, carriage return when done |
+| `go aaaa`                | execute starting at address `aaaa` |
+| `halt`                   | halt |
