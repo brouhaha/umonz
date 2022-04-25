@@ -53,10 +53,11 @@ The commands are:
 
 | command                       | description |
 | ----------------------------- | ----------- |
-| `dump bbbb-eeee`    | dump memmory from adress `bbbb` to `eeee` - can halt with control-C |
-| `read aaaa`         | read one byte of memory from address `aaaa` |
-| `write aaaa=dd...`  | write one or more cosecutive bytes of memory at address `aaaa` with the value(s) `dd`, carriage return when done |
-| `input pp`          | input one byte from port address `pp` |
-| `output pp=dd...`   | output one or more bytes to port address `pp` with the value(s) `dd`, carriage return when done |
-| `go aaaa`           | execute starting at address `aaaa` |
-| `halt`              | halt |
+| `dump bbbb-eeee`      | dump memmory from adress `bbbb` to `eeee` (inclusive) - can halt with control-C |
+| `read aaaa`           | read one byte of memory from address `aaaa` |
+| `write aaaa=dd...`    | write one or more cosecutive bytes of memory at address `aaaa` with the value(s) `dd`, carriage return when done |
+| `copy ssss-eeee dddd` | copy memory from address range `ssss` through `eeee` (nclusive) to address `dddd` |
+| `input pp`            | input one byte from port address `pp` |
+| `output pp=dd...`     | output one or more bytes to port address `pp` with the value(s) `dd`, carriage return when done |
+| `go aaaa`             | execute starting at address `aaaa` |
+| `halt`                | halt |
