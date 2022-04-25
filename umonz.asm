@@ -101,6 +101,9 @@ mloop2:
 	db	'w'
 	dw	cmd_write
 
+	db	'c'
+	dw	cmd_copy
+
 	db	'i'
 	dw	cmd_input
 
@@ -207,6 +210,39 @@ cmd_write_loop:
 	inc	de
 	ld	a,' '
 	jr	cmd_write_loop
+
+
+cmd_copy:
+	ixcall	msg_out_inline		; get source start into DE and HL
+	db	"copy from ",000h
+	ixcall	hex16_in
+	ld	sp,hl			; SP=src
+	ex	de,hl			; DE=src SP=src
+
+	ld	a,'-'			; get source end (inclusive) into HL
+	iycall	char_out
+	ixcall	hex16_in
+	inc	hl			; change end to exclusive
+	or	a			; subtract start to get byte count
+	sbc	hl,de			; DE=src HL=count SP=src 
+
+	ex	de,hl			; DE=count HL=src SP=src
+
+	ixcall	msg_out_inline		; get destination address into HL
+	db	" to ",000h
+	ixcall	hex16_in		; DE=count HL=dest SP=src
+
+	ld	b,d
+	ld	c,e			; BC=count DE=count HL=dest SP=src
+
+	ex	de,hl			; BC=count DE=dest HL=count SP=src
+
+	ld	hl,0
+	add	hl,sp			; BC=count DE=dest HL=src
+
+	ldir				; copy
+
+	jp	mloop_crlf
 
 
 cmd_input:
