@@ -63,7 +63,7 @@ reset:	di
 	ixcall	console_setup
 
 	ixcall	msg_out_inline
-	db	"umonz 0.1",000h
+	db	"umonz 1.0",000h
 
 mloop_crlf:
 	ixcall	crlf_out
