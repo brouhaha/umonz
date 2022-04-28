@@ -5,10 +5,13 @@
 
 	cpu	z80
 
-use_mmap	equ	0	; set for RC2014 512K Flash/RAM style mapper
-use_sio		equ	1	; set to use Z80-SIO serial channel
-use_acia	equ	0	; set to use MC6850 ACIA serial channel
 
+; features
+
+use_mmap	equ	0	; set for RC2014 512K Flash/RAM style mapper
+
+
+; macros for RAM-less subroutine call/return
 
 ixcall	macro	target
 	ld	ix,retaddr
@@ -40,24 +43,10 @@ p_bank3	equ	p_bank0+3	; bank 3 mapping (4000..7fff)
 p_bnken	equ	p_bank0+4	; 0 to disable banking, 1 to enable
 
 
-; other I/O ports
-
-		if	use_sio
-p_sio_c		equ	080h		; control, r/w
-p_sio_d		equ	p_sio_c+1	; data, r/w
-		endif
-
-		if	use_acia
-p_acia_c	equ	080h		; control, write only
-p_acia_s	equ	p_acia_c	; status, read only
-p_acia_d	equ	p_acia_c+1	; data, r/w
-		endif
-
-
 ; character definitions
-c_etx		equ	003h		; control-C
-c_cr		equ	00dh
-c_lf		equ	00ah
+c_etx	equ	003h		; control-C
+c_cr	equ	00dh
+c_lf	equ	00ah
 
 
 ramloc		equ	8000h
@@ -71,7 +60,7 @@ reset:	di
 	ixcall	bank_setup
 	endif
 
-	ixcall	uart_setup
+	ixcall	console_setup
 
 	ixcall	msg_out_inline
 	db	"umonz 0.1",000h
@@ -538,7 +527,6 @@ d_table_end:
 	
 
 ; on entry:
-;    C points to SIO port control register
 ;    IX contains return address
 ; on return:
 ;    A, C, IY destroyed
@@ -850,124 +838,8 @@ hexdig_out:
 	add	a,('a'-'0')-10
 no_adj:
 	add	a,'0'
-; fall into char_out
+	jp	char_out
 	
-
-; on entry:
-;    A contains character to output
-;    IY contains return address
-; on return:
-;    A unchanged
-;    C destroyed
-char_out:
-	if	use_sio
-	ld	c,a
-char_out_loop:
-	in	a,(p_sio_c)	; read RR0, loop if not transmit buffer empty
-	bit	2,a
-	jr	z,char_out_loop 
-	ld	a,c
-	out	(p_sio_d),a	; output the character
-	iyret
-	endif
-
-	if	use_acia
-	ld	c,a
-char_out_loop:
-	in	a,(p_acia_s)
-	bit	1,a
-	jr	z,char_out_loop
-	ld	a,c
-	out	(p_acia_d),a	; output the character
-	iyret
-	endif
-
-
-
-; on entry:
-;    IY contains return address
-; on return
-;    Z flag clear if read character available
-;    A destroyed
-char_avail
-	if	use_sio
-	in	a,(p_sio_c)	; read RR0
-	bit	0,a
-	iyret
-	endif
-
-	if	use_acia	; read status
-	in	a,(p_acia_s)
-	bit	0,a
-	iyret
-	endif
-
-
-; on entry:
-;    IY contains return address
-; on return
-;    A contains recieved character
-char_in
-	if	use_sio
-	in	a,(p_sio_c)	; read RR0, loop if not receive character available
-	bit	0,a
-	jr	z,char_in
-	in	a,(p_sio_d)	; read the character
-	iyret
-	endif
-
-	if	use_acia	; read status, loop if not receive data register full
-	in	a,(p_acia_s)
-	bit	0,a
-	jr	z,char_in
-	in	a,(p_acia_d)	; read the character
-	iyret
-	endif
-
-
-; on entry:
-;    IX contains return address
-; on return:
-;    A destroyed
-uart_setup:
-
-	if	use_sio
-	
-	in	a,(p_sio_c)	; dummy read; if pointer was non-zero, now it will be zero
-
-	ld	a,018h		; write into WR0: channel reset
-	out	(p_sio_c),a
-
-	ld	a,030h		; write into WR0: error reset, select WR0
-	out	(p_sio_c),a
-
-	ld	a,003h		; write into WR0: select WR3
-	out	(p_sio_c),a
-	ld	a,0c1h		; write into WR3: RX 8 bits, RX enable
-	out	(p_sio_c),a
-	
-	ld	a,004h		; write into WR0: select WR4
-	out	(p_sio_c),a
-	ld	a,0c4h		; write into WR4: clk64x, async, 1 stop bit, no parity
-	out	(p_sio_c),a
-
-	ld	a,005h		; write into WR0: select WR5
-	out	(p_sio_c),a
-	ld	a,0eah		; write into WR5: DTR active, TX 8 bits, break off, TX on, RTS active
-	out	(p_sio_c),a
-
-	ixret
-
-	endif
-
-	if	use_acia
-
-	ld	a,015h		; div 16, 8N1, RTS active, interrupts disabled
-	out	(p_acia_c),a
-	ixret
-
-	endif
-
 
 ; on entry:
 ;    IX contains return address
@@ -1006,6 +878,3 @@ downcase:
 downcase1:
 	add	a,'A'
 	iyret
-
-
-	end

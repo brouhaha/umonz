@@ -2,7 +2,9 @@
 # SPDX-License-Identifier: GPL-3.0-only
 
 
-all: umonz.lst umonz.hex umonz.bin dltest.hex
+all:    umonz-sio.lst umonz-sio.hex umonz-sio.bin \
+        umonz-acia.lst umonz-acia.hex umonz-acia.bin \
+        dltest.hex
 
 
 %.lst %.p: %.asm
@@ -16,21 +18,31 @@ all: umonz.lst umonz.hex umonz.bin dltest.hex
 	p2bin -r "\$$-0x" $*
 
 
-SIM = /home/eric/src/rc2014-emu/RC2014/rc2014
-
-# requires umonz.asm to be configured for SIO
-sim:	umonz.bin
-	cp umonz.bin rc2014.rom
-	truncate -s 512K rc2014.rom
-	$(SIM) -s
+%.rom: %.bin
+	cp $< $@
+	truncate -s 512K $@
 
 
-# requires umon1.asm to be configured for ACIA
-sim-acia:	umonz.bin
-	cp umonz.bin rc2014.rom
-	truncate -s 512K rc2014.rom
-	$(SIM)
+umon-sio.lst umon-sio.p: umon-sio.asm umon.asm sio.asm
+
+umon-acia.lst umon-acia.p: umon-acia.asm umon.asm acia.asm
 
 
 clean:
 	rm -f *.p *.hex *.bin *.lst *.rom
+
+
+# The rc2014 simulator by EtchedPixels is useful for testing.
+#    https://github.com/EtchedPixels/RC2014/
+# Only the "rc2014" executable is needed. Put it in a directory in
+# your path, or redefine SIM.
+
+SIM=rc2014
+
+sim:	umonz-sio.rom
+	$(SIM) -s -r $<
+
+sim-acia:	umonz-acia.rom
+	$(SIM) -r $<
+
+
